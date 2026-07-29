@@ -21,7 +21,16 @@ export class RafScheduler {
 
   subscribe(cb: FrameCallback, fps = 30): () => void {
     const key = Symbol("raf-subscriber");
-    this.subscribers.set(key, { fps, last: 0, cb });
+    // Without a phase offset, every subscriber's first `elapsed >= interval`
+    // check trips on the very same tick (last starts at 0, so elapsed is huge
+    // regardless of fps), and `last` then gets set to that identical `now`.
+    // Same-fps subscribers (the common case: every monitor's compositor uses
+    // the same default fps) stay locked to that shared phase forever after,
+    // so their expensive synchronous capture work stacks into one animation
+    // frame instead of spreading across frames. Starting `last` at a random
+    // point within one interval desyncs them from the first fire onward.
+    const interval = fps > 0 ? 1000 / fps : 0;
+    this.subscribers.set(key, { fps, last: performance.now() - Math.random() * interval, cb });
     this.ensureLoop();
     return () => {
       this.subscribers.delete(key);
