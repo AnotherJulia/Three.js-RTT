@@ -12,7 +12,7 @@ itself to face the camera.
 [![license](https://img.shields.io/npm/l/three-rtt.svg)](./LICENSE)
 
 <p align="center">
-  <img src="./docs/demo.png" alt="three-rtt demo: a live, interactive DOM app rendered directly onto a curved CRT monitor's authored screen mesh, with a second monitor visible in the same scene" width="720" />
+  <img src="./docs/demo.png" alt="three-rtt demo: a live, interactive DOM app rendered directly onto a curved CRT monitor's authored screen mesh" width="720" />
 </p>
 
 ## Why this exists

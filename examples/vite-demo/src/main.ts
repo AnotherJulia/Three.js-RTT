@@ -5,7 +5,7 @@ import {
   DirectionalLight,
   Group,
   Mesh,
-  MeshStandardMaterial,
+  MeshPhongMaterial,
   PerspectiveCamera,
   PointLight,
   Raycaster,
@@ -31,12 +31,14 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 
 const scene = new Scene();
 const camera = new PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.05, 50);
-// The two FBX assets are very different physical scales (Box_Monitor ~0.5m desk CRT,
-// Projector_Monitor ~1.7m projection screen) — framed wide enough to fit both at once.
-camera.position.set(0.7, 0.65, 3.3);
+// Box_Monitor (the curved desk CRT) is the hero: framed front-and-center, orbiting
+// about its screen center. Projector_Monitor sits off to the right, out of the
+// default frame, since it's ~3x the physical scale and would dwarf the CRT if both
+// had to fit the initial shot.
+camera.position.set(-0.338, 0.34, 0.72);
 
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.target.set(0.7, 0.3, 0);
+controls.target.set(-0.55, 0.19, 0);
 controls.enableDamping = true;
 
 scene.add(new AmbientLight(0x8fa8ff, 0.75));
@@ -135,10 +137,16 @@ async function main(): Promise<void> {
         generateMipmaps: false,
         applyAsEmissive: true,
         materialFactory: (original) => {
-          const material = (original as MeshStandardMaterial).clone();
+          // FBXLoader hands back MeshPhongMaterial with a bright authored specular
+          // (#cccccc, shininess 25) — on a flat/curved screen that catches the sweep
+          // light as a hard, aliased glint that reads as a stray lightning-bolt streak
+          // across the live content. Zeroed out: a self-lit screen shouldn't reflect
+          // scene lights at all, it should only show its emissive live map.
+          const material = (original as MeshPhongMaterial).clone();
           material.color.set("#ffffff");
           material.emissive.set("#ffffff");
-          material.emissiveIntensity = 1;
+          material.specular.set("#000000");
+          material.shininess = 0;
           return material;
         },
       },
@@ -231,7 +239,7 @@ async function main(): Promise<void> {
     if (event.key.toLowerCase() !== "u") return;
     for (const monitor of monitors) {
       monitor.checkerApplied = !monitor.checkerApplied;
-      const material = monitor.surface.mesh.material as MeshStandardMaterial;
+      const material = monitor.surface.mesh.material as MeshPhongMaterial;
       material.map = monitor.checkerApplied ? checkerTexture : monitor.liveMap;
       material.needsUpdate = true;
     }
