@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>three-rtt demo</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #05070a; overflow: hidden; }
+      #app-canvas { position: fixed; inset: 0; display: block; }
+      #hud {
+        position: fixed; top: 12px; left: 12px; z-index: 10;
+        font: 12px/1.5 ui-monospace, monospace; color: #baffd9;
+        background: rgba(4, 10, 8, 0.78); border: 1px solid #1d6b45;
+        padding: 10px 14px; max-width: 380px; pointer-events: none;
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="app-canvas"></canvas>
+    <div id="hud"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

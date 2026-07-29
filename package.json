@@ -1,0 +1,62 @@
+{
+  "name": "three-rtt",
+  "version": "0.1.0",
+  "description": "Render-to-texture live DOM/web content onto Three.js meshes: no iframe, curvature-correct, fully interactive.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AnotherJulia/three-rtt.git"
+  },
+  "homepage": "https://github.com/AnotherJulia/three-rtt#readme",
+  "bugs": {
+    "url": "https://github.com/AnotherJulia/three-rtt/issues"
+  },
+  "keywords": [
+    "three",
+    "threejs",
+    "webgl",
+    "render-to-texture",
+    "canvas-texture",
+    "dom-to-texture",
+    "diegetic-ui",
+    "curved-screen",
+    "in-game-browser"
+  ],
+  "workspaces": [
+    "examples/*"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "postinstall": "node scripts/link-examples.mjs",
+    "prepublishOnly": "npm run typecheck && npm run test && npm run build"
+  },
+  "peerDependencies": {
+    "three": ">=0.160.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.180.0",
+    "happy-dom": "^20.11.1",
+    "three": "^0.180.0",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}
