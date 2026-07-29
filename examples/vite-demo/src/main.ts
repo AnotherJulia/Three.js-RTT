@@ -2,6 +2,7 @@ import {
   AmbientLight,
   CanvasTexture,
   Clock,
+  DirectionalLight,
   Group,
   Mesh,
   MeshStandardMaterial,
@@ -38,7 +39,13 @@ const controls = new OrbitControls(camera, renderer.domElement);
 controls.target.set(0.7, 0.3, 0);
 controls.enableDamping = true;
 
-scene.add(new AmbientLight(0x88a0ff, 0.35));
+scene.add(new AmbientLight(0x8fa8ff, 0.75));
+
+// Steady key light so the screens themselves (not just the chassis) read clearly —
+// the sweep light alone leaves the monitors legible only while it's nearby.
+const keyLight = new DirectionalLight(0xffffff, 1.4);
+keyLight.position.set(0.5, 2, 2);
+scene.add(keyLight);
 
 // Orbiting point light: with a true render-to-texture screen, real specular highlights
 // should visibly sweep across the curved Box_Monitor glass as this moves — something a
@@ -120,13 +127,37 @@ async function main(): Promise<void> {
       root: config.root,
       resolution: SCREEN_RESOLUTION,
       compositor: { fps: 30 },
-      texture: { generateMipmaps: false },
+      // Self-lit, so the live content reads clearly regardless of scene lighting —
+      // a screen should look like it's emitting light, not reflecting it. The
+      // materialFactory neutralizes the FBX-authored base color/emissive (whatever
+      // baked look the model shipped with) so the live map isn't tinted or dimmed.
+      texture: {
+        generateMipmaps: false,
+        applyAsEmissive: true,
+        materialFactory: (original) => {
+          const material = (original as MeshStandardMaterial).clone();
+          material.color.set("#ffffff");
+          material.emissive.set("#ffffff");
+          material.emissiveIntensity = 1;
+          return material;
+        },
+      },
       input: { camera, domElement: renderer.domElement },
     });
     monitors.push({ id: config.id, surface, liveMap: surface.screenTexture.texture, checkerApplied: false });
   }
 
   if (import.meta.env.DEV) {
+    // Dev-only harness hook: precise camera control for scripted screenshots.
+    (window as unknown as Record<string, unknown>).__frameCamera = (
+      pos: [number, number, number],
+      target: [number, number, number],
+    ) => {
+      camera.position.set(...pos);
+      controls.target.set(...target);
+      controls.update();
+    };
+
     // Dev-only harness hook: exercises the exact InputBridge.handleHit path a real
     // raycast hit would use, without depending on precise on-screen pixel picking
     // (useful for automated verification of the input-forwarding pipeline itself).

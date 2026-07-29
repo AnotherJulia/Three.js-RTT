@@ -1,6 +1,6 @@
 {
   "name": "three-rtt",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Render-to-texture live DOM/web content onto Three.js meshes: no iframe, curvature-correct, fully interactive.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -45,7 +45,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "postinstall": "node scripts/link-examples.mjs",
+    "link-examples": "node scripts/link-examples.mjs",
+    "prebuild": "npm run link-examples",
+    "predev": "npm run link-examples",
+    "pretest": "npm run link-examples",
     "prepublishOnly": "npm run typecheck && npm run test && npm run build"
   },
   "peerDependencies": {
