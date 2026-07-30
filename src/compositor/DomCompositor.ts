@@ -18,6 +18,8 @@ export interface CompositorOptions {
   liveElementSelector?: string;
   /** Shared scheduler (injected by ScreenSurfaceRegistry) or a private one per compositor. */
   scheduler?: RafScheduler;
+  /** Called when a raster capture fails; the previous successful frame remains visible. */
+  onCaptureError?: (error: unknown) => void;
 }
 
 /**
@@ -46,12 +48,15 @@ export class DomCompositor {
   private fps: number;
   private captureInFlight = false;
   private lastCaptureMs = 0;
+  private lastCaptureError: unknown = null;
+  private readonly onCaptureError?: (error: unknown) => void;
 
   constructor(options: CompositorOptions) {
     this.root = options.root;
     this.width = options.width;
     this.height = options.height;
     this.fps = options.fps ?? 24;
+    this.onCaptureError = options.onCaptureError;
     this.liveElementSelector = options.liveElementSelector ?? "video, canvas";
     this.strategy = options.strategy ?? new ForeignObjectRasterStrategy({ liveElementSelector: this.liveElementSelector });
     this.dirtyTracker = new DirtyTracker(this.root, options.dirty ?? "mutation-observer");
@@ -139,6 +144,10 @@ export class DomCompositor {
         this.baseCtx.clearRect(0, 0, this.width, this.height);
         this.baseCtx.drawImage(frame.canvas, 0, 0, this.width, this.height);
         this.dirtyTracker.markClean();
+        this.lastCaptureError = null;
+      } catch (error) {
+        this.lastCaptureError = error;
+        this.onCaptureError?.(error);
       } finally {
         this.captureInFlight = false;
       }
@@ -157,6 +166,10 @@ export class DomCompositor {
 
   get lastCaptureDurationMs(): number {
     return this.lastCaptureMs;
+  }
+
+  get lastError(): unknown {
+    return this.lastCaptureError;
   }
 
   private drawLiveElementOverlay(liveElements: ReturnType<typeof findLiveElements>): void {
