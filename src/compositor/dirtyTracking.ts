@@ -75,8 +75,8 @@ export function findLiveElements(root: HTMLElement, selector = "video, canvas"):
     let ancestor = element.parentElement;
     while (ancestor && ancestor !== root.parentElement) {
       const style = getComputedStyle(ancestor);
-      const clipsX = clipsOverflow(style.overflowX);
-      const clipsY = clipsOverflow(style.overflowY);
+      const clipsX = clipsOverflow(style.overflowX || ancestor.style.overflowX || style.overflow || ancestor.style.overflow);
+      const clipsY = clipsOverflow(style.overflowY || ancestor.style.overflowY || style.overflow || ancestor.style.overflow);
       if (clipsX || clipsY) {
         const ancestorRect = ancestor.getBoundingClientRect();
         const ancestorClip = {

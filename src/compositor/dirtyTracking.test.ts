@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DirtyTracker } from "./dirtyTracking";
+import { DirtyTracker, findLiveElements } from "./dirtyTracking";
 
 describe("DirtyTracker", () => {
   it("mode 'always' is always dirty", () => {
@@ -44,5 +44,33 @@ describe("DirtyTracker", () => {
     expect(tracker.isDirty()).toBe(true);
     tracker.dispose();
     root.remove();
+  });
+
+  it("intersects every scrolling and clipping ancestor for live elements", () => {
+    const root = document.createElement("div");
+    const outer = document.createElement("div");
+    const inner = document.createElement("div");
+    const canvas = document.createElement("canvas");
+    outer.style.overflowX = "hidden";
+    outer.style.overflowY = "hidden";
+    inner.style.overflowX = "auto";
+    inner.style.overflowY = "auto";
+    inner.appendChild(canvas);
+    outer.appendChild(inner);
+    root.appendChild(outer);
+    const rects = new Map<Element, Partial<DOMRect>>([
+      [root, { left: 0, top: 0, width: 100, height: 100 }],
+      [outer, { left: 10, top: 10, width: 70, height: 70 }],
+      [inner, { left: 20, top: 20, width: 70, height: 70 }],
+      [canvas, { left: 15, top: 15, width: 100, height: 100 }],
+    ]);
+    for (const [element, rect] of rects) {
+      Object.assign(element, {
+        getBoundingClientRect: () => ({ left: 0, top: 0, width: 0, height: 0, ...rect }),
+      });
+    }
+
+    const [live] = findLiveElements(root);
+    expect(live?.clip).toEqual({ left: 20, top: 20, width: 60, height: 60 });
   });
 });
