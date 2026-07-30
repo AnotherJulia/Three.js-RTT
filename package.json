@@ -1,6 +1,6 @@
 {
   "name": "three.js-rtt",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Render live web apps to textures on Three.js meshes—interactive DOM UI for curved and flat in-scene screens.",
   "type": "module",
   "main": "./dist/index.cjs",

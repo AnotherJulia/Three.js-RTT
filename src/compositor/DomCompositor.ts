@@ -47,6 +47,9 @@ export class DomCompositor {
   private height: number;
   private fps: number;
   private captureInFlight = false;
+  // Whether the last dirty-triggered scan found any <video>/<canvas> descendants.
+  // Gates whether tick() bothers re-scanning on a clean tick — see tick().
+  private hasLiveElements = false;
   private lastCaptureMs = 0;
   private lastCaptureError: unknown = null;
   private readonly onCaptureError?: (error: unknown) => void;
@@ -153,7 +156,16 @@ export class DomCompositor {
       }
     }
 
-    const liveElements = findLiveElements(this.root, this.liveElementSelector);
+    // findLiveElements() forces a synchronous layout (root.getBoundingClientRect()
+    // plus a querySelectorAll over the whole subtree) even when it finds nothing —
+    // paid on every tick regardless of dirty state. A <video>/<canvas> can only
+    // enter or leave the DOM via a mutation, which the dirty tracker already
+    // observes, so it's safe to skip this scan entirely on a clean tick when the
+    // last dirty scan found none: nothing could have silently appeared since.
+    const liveElements = isDirty || this.hasLiveElements
+      ? findLiveElements(this.root, this.liveElementSelector)
+      : [];
+    if (isDirty) this.hasLiveElements = liveElements.length > 0;
     // A static base with no live descendants is already resident in the texture;
     // avoid both a canvas copy and a GPU upload on its scheduled ticks.
     if (!isDirty && liveElements.length === 0) return;
