@@ -15,7 +15,7 @@ import {
 } from "three";
 import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { ScreenSurfaceRegistry, type ScreenSurface } from "three-rtt";
+import { ScreenSurfaceRegistry, type ScreenSurface } from "three.js-rtt";
 import { createDemoApp } from "./demoApp";
 import { createUvCheckerTexture } from "./uvChecker";
 
@@ -263,7 +263,7 @@ async function main(): Promise<void> {
 
   function updateHud(): void {
     const lines = [
-      "three-rtt demo",
+      "Three.js-RTT demo",
       "Orbit to confirm no billboarding + curved specular sweep.",
       "Click a screen to type/click inside it. Press U to toggle UV checker.",
       "",

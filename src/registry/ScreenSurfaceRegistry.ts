@@ -23,7 +23,7 @@ export class ScreenSurfaceRegistry {
 
   register(options: Omit<ScreenSurfaceOptions, "scheduler">): ScreenSurface {
     if (this.screens.has(options.id)) {
-      throw new Error(`[three-rtt] screen "${options.id}" is already registered`);
+      throw new Error(`[Three.js-RTT] screen "${options.id}" is already registered`);
     }
     const screen = new ScreenSurface({ ...options, scheduler: this.scheduler });
     screen.start();

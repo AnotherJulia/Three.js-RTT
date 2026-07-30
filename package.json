@@ -1,7 +1,7 @@
 {
-  "name": "three-rtt",
+  "name": "three.js-rtt",
   "version": "0.1.1",
-  "description": "Render-to-texture live DOM/web content onto Three.js meshes: no iframe, curvature-correct, fully interactive.",
+  "description": "Render live web apps to textures on Three.js meshes—interactive DOM UI for curved and flat in-scene screens.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -19,11 +19,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/AnotherJulia/three-rtt.git"
+    "url": "git+https://github.com/AnotherJulia/Three.js-RTT.git"
   },
-  "homepage": "https://github.com/AnotherJulia/three-rtt#readme",
+  "homepage": "https://github.com/AnotherJulia/Three.js-RTT#readme",
   "bugs": {
-    "url": "https://github.com/AnotherJulia/three-rtt/issues"
+    "url": "https://github.com/AnotherJulia/Three.js-RTT/issues"
   },
   "keywords": [
     "three",
@@ -32,6 +32,8 @@
     "render-to-texture",
     "canvas-texture",
     "dom-to-texture",
+    "web-app-to-texture",
+    "web-ui-to-texture",
     "diegetic-ui",
     "curved-screen",
     "in-game-browser"

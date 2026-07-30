@@ -58,7 +58,7 @@ export class DomCompositor {
     this.canvas.width = this.width;
     this.canvas.height = this.height;
     const ctx = this.canvas.getContext("2d");
-    if (!ctx) throw new Error("[three-rtt] 2D canvas context unavailable");
+    if (!ctx) throw new Error("[Three.js-RTT] 2D canvas context unavailable");
     this.ctx = ctx;
 
     this.strategy.attach(this.root, this.width, this.height);

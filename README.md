@@ -1,6 +1,6 @@
-# three-rtt
+# Three.js-RTT
 
-**Render-to-texture for live, interactive web content on Three.js meshes.**
+**Render live web apps to textures on Three.js meshes — ideal for curved, in-scene screens.**
 
 Put a real web app — DOM, CSS animations, `<video>`, nested `<canvas>` — onto any mesh in a
 Three.js scene, curved or flat, with no `<iframe>`, no camera-facing overlay, and full
@@ -8,11 +8,11 @@ click/keyboard interactivity. The content is a real, ordinary texture: it rides 
 UVs, gets normal lighting/occlusion/perspective from the WebGL pipeline, and never repositions
 itself to face the camera.
 
-[![npm version](https://img.shields.io/npm/v/three-rtt.svg)](https://www.npmjs.com/package/three-rtt)
-[![license](https://img.shields.io/npm/l/three-rtt.svg)](./LICENSE)
+[![npm version](https://img.shields.io/npm/v/three.js-rtt.svg)](https://www.npmjs.com/package/three.js-rtt)
+[![license](https://img.shields.io/npm/l/three.js-rtt.svg)](./LICENSE)
 
 <p align="center">
-  <img src="./docs/demo.png" alt="three-rtt demo: a live, interactive DOM app rendered directly onto a curved CRT monitor's authored screen mesh" width="720" />
+  <img src="./docs/demo.png" alt="Three.js-RTT demo: a live, interactive web app rendered directly onto a curved CRT monitor's authored screen mesh" width="720" />
 </p>
 
 ## Why this exists
@@ -29,7 +29,7 @@ The usual way to put "a screen" in a Three.js scene is one of:
 - **A frozen snapshot texture.** Solves curvature, but it's a single static image — no
   animation, no interactivity, no live content.
 
-**three-rtt** is a fourth option: a genuine render-to-texture pipeline. It continuously
+**Three.js-RTT** is a fourth option: a genuine render-to-texture pipeline. It continuously
 rasterizes a live, off-screen DOM subtree into a `<canvas>`, wires that canvas up as a
 `THREE.CanvasTexture` on the target mesh's material, and bridges pointer/keyboard input back
 into the real DOM via raycasting — so the *only* thing touching the WebGL scene is an ordinary
@@ -38,7 +38,7 @@ texture, and the *only* thing handling text input is a real, focused, native `<i
 ## Install
 
 ```bash
-npm install three-rtt
+npm install three.js-rtt
 ```
 
 `three` (`>=0.160.0`) is a peer dependency — bring your own version.
@@ -46,7 +46,7 @@ npm install three-rtt
 ## Quick start
 
 ```ts
-import { ScreenSurfaceRegistry } from "three-rtt";
+import { ScreenSurfaceRegistry } from "three.js-rtt";
 import { Mesh, PerspectiveCamera, WebGLRenderer } from "three";
 
 // Any live, connected DOM subtree — a real app, not a snapshot.
@@ -173,8 +173,8 @@ smoothly instead of backing up.
 ## Demo
 
 ```bash
-git clone https://github.com/AnotherJulia/three-rtt.git
-cd three-rtt
+git clone https://github.com/AnotherJulia/Three.js-RTT.git
+cd Three.js-RTT
 npm install
 npm run build
 cd examples/vite-demo

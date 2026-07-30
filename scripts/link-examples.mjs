@@ -13,11 +13,11 @@ if (existsSync(examplesDir)) {
   for (const name of readdirSync(examplesDir)) {
     const exampleDir = join(examplesDir, name);
     const nodeModulesDir = join(exampleDir, "node_modules");
-    const linkPath = join(nodeModulesDir, "three-rtt");
+    const linkPath = join(nodeModulesDir, "three.js-rtt");
 
     mkdirSync(nodeModulesDir, { recursive: true });
     if (existsSync(linkPath)) rmSync(linkPath, { recursive: true, force: true });
     symlinkSync(relative(nodeModulesDir, repoRoot), linkPath, "dir");
-    console.log(`[link-examples] examples/${name}/node_modules/three-rtt -> repo root`);
+    console.log(`[link-examples] examples/${name}/node_modules/three.js-rtt -> repo root`);
   }
 }

@@ -30,7 +30,7 @@ export class ForeignObjectRasterStrategy implements RasterStrategy {
     this.styleProperties = options.styleProperties ?? DEFAULT_STYLE_PROPERTIES;
     this.canvas = document.createElement("canvas");
     const ctx = this.canvas.getContext("2d");
-    if (!ctx) throw new Error("[three-rtt] 2D canvas context unavailable");
+    if (!ctx) throw new Error("[Three.js-RTT] 2D canvas context unavailable");
     this.ctx = ctx;
   }
 
@@ -47,7 +47,7 @@ export class ForeignObjectRasterStrategy implements RasterStrategy {
   }
 
   async capture(): Promise<RasterFrame> {
-    if (!this.root) throw new Error("[three-rtt] ForeignObjectRasterStrategy not attached");
+    if (!this.root) throw new Error("[Three.js-RTT] ForeignObjectRasterStrategy not attached");
     const svgMarkup = this.serialize(this.root);
     const image = new Image();
     image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgMarkup)}`;

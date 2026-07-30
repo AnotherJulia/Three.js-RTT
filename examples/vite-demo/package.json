@@ -1,5 +1,5 @@
 {
-  "name": "three-rtt-demo",
+  "name": "three.js-rtt-demo",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "three": "^0.180.0",
-    "three-rtt": "file:../.."
+    "three.js-rtt": "file:../.."
   },
   "devDependencies": {
     "typescript": "^5.9.3",
