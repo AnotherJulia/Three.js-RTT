@@ -43,6 +43,7 @@ export class InputBridge {
   private snapshot: HitCandidate[] = [];
   private snapshotAt = 0;
   private lastTarget: HTMLElement | null = null;
+  private hoverTarget: HTMLElement | null = null;
   private lastLocalX = 0;
   private lastLocalY = 0;
   private enabled = false;
@@ -109,6 +110,7 @@ export class InputBridge {
 
   dispose(): void {
     this.disable();
+    this.setHoverTarget(null);
   }
 
   /** Forces a fresh hit-test snapshot on the next event rather than waiting out the cache age. */
@@ -126,6 +128,7 @@ export class InputBridge {
 
     const target = hitTestSnapshot(this.ensureSnapshot(), localX, localY);
     this.lastTarget = target;
+    if (type === "pointermove") this.setHoverTarget(target);
     if (!target) return null;
 
     forwardPointerEvent({ root: this.root, target, type, localX, localY, nativeEvent });
@@ -181,8 +184,18 @@ export class InputBridge {
 
   private onPointerMove(event: PointerEvent): void {
     const uv = this.raycastUv(event);
-    if (!uv) return;
+    if (!uv) {
+      this.setHoverTarget(null);
+      return;
+    }
     this.handleHit(uv, "pointermove", event);
+  }
+
+  private setHoverTarget(target: HTMLElement | null): void {
+    if (target === this.hoverTarget) return;
+    this.hoverTarget?.removeAttribute("data-hover");
+    target?.setAttribute("data-hover", "");
+    this.hoverTarget = target;
   }
 
   private onPointerUp(event: PointerEvent): void {
