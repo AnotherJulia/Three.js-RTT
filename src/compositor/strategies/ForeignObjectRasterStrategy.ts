@@ -64,7 +64,7 @@ export class ForeignObjectRasterStrategy implements RasterStrategy {
   private serialize(root: HTMLElement): string {
     const clone = root.cloneNode(true) as HTMLElement;
     this.inlineStyles(root, clone);
-    this.blankLiveElements(clone);
+    this.blankLiveElements(root, clone);
     const markup = new XMLSerializer().serializeToString(clone);
     return `<svg xmlns="http://www.w3.org/2000/svg" width="${this.width}" height="${this.height}"><foreignObject width="100%" height="100%">${markup}</foreignObject></svg>`;
   }
@@ -86,12 +86,18 @@ export class ForeignObjectRasterStrategy implements RasterStrategy {
     }
   }
 
-  private blankLiveElements(clone: HTMLElement): void {
-    const liveElements = clone.querySelectorAll(this.liveElementSelector);
-    for (const element of Array.from(liveElements)) {
+  private blankLiveElements(source: HTMLElement, clone: HTMLElement): void {
+    const sourceElements = Array.from(source.querySelectorAll<HTMLElement>(this.liveElementSelector));
+    const clonedElements = Array.from(clone.querySelectorAll<HTMLElement>(this.liveElementSelector));
+    for (let index = 0; index < clonedElements.length; index += 1) {
+      const element = clonedElements[index]!;
+      const sourceElement = sourceElements[index];
+      if (!sourceElement) continue;
       const placeholder = document.createElement("div");
-      placeholder.style.cssText = element.getAttribute("style") ?? "";
-      const rect = element.getBoundingClientRect();
+      // The clone is detached and therefore has a zero-sized DOMRect. Preserve
+      // its inlined visual styles but measure the corresponding live source node.
+      placeholder.style.cssText = element.style.cssText;
+      const rect = sourceElement.getBoundingClientRect();
       placeholder.style.width = `${rect.width}px`;
       placeholder.style.height = `${rect.height}px`;
       element.replaceWith(placeholder);
