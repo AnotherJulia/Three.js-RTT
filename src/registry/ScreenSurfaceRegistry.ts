@@ -55,6 +55,9 @@ export class ScreenSurfaceRegistry {
   }
 
   setFocused(id: string | null): void {
+    if (id !== null && !this.screens.has(id)) {
+      throw new Error(`[Three.js-RTT] cannot focus unregistered screen "${id}"`);
+    }
     if (this.focused === id) return;
     this.focused = id;
     this.emit("focuschange", { id });
