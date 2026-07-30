@@ -64,6 +64,7 @@ export class ForeignObjectRasterStrategy implements RasterStrategy {
   private serialize(root: HTMLElement): string {
     const clone = root.cloneNode(true) as HTMLElement;
     this.inlineStyles(root, clone);
+    preserveScrollOffsets(root, clone);
     this.blankLiveElements(root, clone);
     const markup = new XMLSerializer().serializeToString(clone);
     return `<svg xmlns="http://www.w3.org/2000/svg" width="${this.width}" height="${this.height}"><foreignObject width="100%" height="100%">${markup}</foreignObject></svg>`;
@@ -101,6 +102,32 @@ export class ForeignObjectRasterStrategy implements RasterStrategy {
       placeholder.style.width = `${rect.width}px`;
       placeholder.style.height = `${rect.height}px`;
       element.replaceWith(placeholder);
+    }
+  }
+}
+
+/**
+ * `cloneNode()` preserves markup and inline styles but not an element's live
+ * scroll state. `scrollTop` is a DOM property, not serialized SVG markup, so
+ * mirror it by translating each direct child inside a clipped scroll host.
+ * This preserves wheel-driven scrolling when the detached clone is painted by
+ * SVG foreignObject.
+ */
+export function preserveScrollOffsets(source: HTMLElement, clone: HTMLElement): void {
+  const sourceElements = [source, ...source.querySelectorAll<HTMLElement>("*")];
+  const clonedElements = [clone, ...clone.querySelectorAll<HTMLElement>("*")];
+
+  for (let index = 0; index < sourceElements.length; index += 1) {
+    const sourceElement = sourceElements[index];
+    const clonedElement = clonedElements[index];
+    if (!sourceElement || !clonedElement) continue;
+    if (sourceElement.scrollLeft === 0 && sourceElement.scrollTop === 0) continue;
+
+    const offset = `translate(${-sourceElement.scrollLeft}px, ${-sourceElement.scrollTop}px)`;
+    for (const child of Array.from(clonedElement.children)) {
+      if (!(child instanceof HTMLElement)) continue;
+      const transform = child.style.transform;
+      child.style.transform = transform && transform !== "none" ? `${offset} ${transform}` : offset;
     }
   }
 }

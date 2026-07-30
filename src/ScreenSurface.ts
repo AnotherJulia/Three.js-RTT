@@ -58,7 +58,19 @@ export class ScreenSurface {
     this.unsubscribeFrame = this.compositor.onFrame(() => this.screenTexture.markDirty());
 
     if (options.input !== false && options.input) {
-      this.input = new InputBridge({ ...options.input, mesh: this.mesh, root: options.root });
+      this.input = new InputBridge({
+        ...options.input,
+        mesh: this.mesh,
+        root: options.root,
+        onScroll: () => {
+          options.input && options.input.onScroll?.();
+          this.compositor.requestRedraw();
+        },
+        onInteraction: () => {
+          options.input && options.input.onInteraction?.();
+          this.compositor.requestRedraw();
+        },
+      });
       this.input.enable();
     }
   }

@@ -3,8 +3,37 @@ import type { Rect } from "../utils/rect";
 export interface HitCandidate {
   element: HTMLElement;
   rect: Rect;
-  zIndex: number;
+  /**
+   * Explicit z-index values of the stacking contexts that contain this node,
+   * outermost first. A child must never escape the z-order of its window.
+   */
+  stackingOrder: number[];
   documentOrder: number;
+}
+
+function stackingOrderFor(element: HTMLElement, root: HTMLElement): number[] {
+  const order: number[] = [];
+  let current: HTMLElement | null = element;
+
+  while (current && current !== root) {
+    const style = getComputedStyle(current);
+    const zIndex = Number.parseInt(style.zIndex, 10);
+    if (style.position !== "static" && !Number.isNaN(zIndex)) order.unshift(zIndex);
+    current = current.parentElement;
+  }
+
+  return order;
+}
+
+function compareStackingOrder(a: readonly number[], b: readonly number[]): number {
+  const length = Math.min(a.length, b.length);
+  for (let index = 0; index < length; index += 1) {
+    const left = a[index]!;
+    const right = b[index]!;
+    if (left !== right) return left - right;
+  }
+  // A descendant stacking context paints above its parent's normal content.
+  return a.length - b.length;
 }
 
 /**
@@ -30,7 +59,6 @@ export function captureHitTestSnapshot(root: HTMLElement): HitCandidate[] {
     if (style.pointerEvents !== "none" && style.visibility !== "hidden" && style.display !== "none") {
       const elRect = node.getBoundingClientRect();
       if (elRect.width > 0 && elRect.height > 0) {
-        const zIndexValue = style.position === "static" ? NaN : Number.parseInt(style.zIndex, 10);
         candidates.push({
           element: node,
           rect: {
@@ -39,7 +67,7 @@ export function captureHitTestSnapshot(root: HTMLElement): HitCandidate[] {
             width: elRect.width,
             height: elRect.height,
           },
-          zIndex: Number.isNaN(zIndexValue) ? 0 : zIndexValue,
+          stackingOrder: stackingOrderFor(node, root),
           documentOrder: documentOrder++,
         });
       }
@@ -69,8 +97,9 @@ export function hitTestSnapshot(snapshot: readonly HitCandidate[], x: number, y:
       continue;
     }
 
-    if (candidate.zIndex !== best.zIndex) {
-      if (candidate.zIndex > best.zIndex) best = candidate;
+    const stackingComparison = compareStackingOrder(candidate.stackingOrder, best.stackingOrder);
+    if (stackingComparison !== 0) {
+      if (stackingComparison > 0) best = candidate;
       continue;
     }
 

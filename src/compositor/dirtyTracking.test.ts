@@ -34,6 +34,17 @@ describe("DirtyTracker", () => {
     expect(tracker.isDirty()).toBe(true);
   });
 
+  it("does not clear a redraw requested during an in-flight capture", () => {
+    const root = document.createElement("div");
+    const tracker = new DirtyTracker(root, "mutation-observer");
+    const captureRevision = tracker.getRevision();
+
+    tracker.requestRedraw();
+    tracker.markClean(captureRevision);
+
+    expect(tracker.isDirty()).toBe(true);
+  });
+
   it("a DOM mutation marks it dirty again", async () => {
     const root = document.createElement("div");
     document.body.appendChild(root);

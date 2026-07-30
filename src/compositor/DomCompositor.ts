@@ -139,6 +139,10 @@ export class DomCompositor {
     const isDirty = this.dirtyTracker.isDirty() || this.hasRunningBaseAnimation();
 
     if (isDirty) {
+      // `capture()` decodes an SVG image asynchronously. Retain the mutation
+      // revision it started from so a React commit during that await schedules
+      // one more capture rather than being accidentally marked clean below.
+      const captureRevision = this.dirtyTracker.getRevision();
       this.captureInFlight = true;
       try {
         const t0 = performance.now();
@@ -146,7 +150,7 @@ export class DomCompositor {
         this.lastCaptureMs = performance.now() - t0;
         this.baseCtx.clearRect(0, 0, this.width, this.height);
         this.baseCtx.drawImage(frame.canvas, 0, 0, this.width, this.height);
-        this.dirtyTracker.markClean();
+        this.dirtyTracker.markClean(captureRevision);
         this.lastCaptureError = null;
       } catch (error) {
         this.lastCaptureError = error;

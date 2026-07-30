@@ -1,7 +1,13 @@
 import { Camera, Mesh, Raycaster, Vector2 } from "three";
 import { captureHitTestSnapshot, hitTestSnapshot, type HitCandidate } from "./hitTest";
 import { forwardKeyboardEvent } from "./keyboardForwarding";
-import { findFocusableTarget, forwardPointerEvent, type ForwardablePointerType } from "./pointerForwarding";
+import {
+  findActivationTarget,
+  findFocusableTarget,
+  forwardPointerEvent,
+  scrollNearestAncestor,
+  type ForwardablePointerType,
+} from "./pointerForwarding";
 
 export type KeyboardMode = "focus-transfer" | "synthetic";
 
@@ -22,6 +28,10 @@ export interface InputBridgeOptions {
   keyboardMode?: KeyboardMode;
   /** Max age (ms) before the cached hit-test snapshot is recaptured. Default 50ms. */
   snapshotMaxAgeMs?: number;
+  /** Called after a forwarded wheel gesture changes an off-screen scroll position. */
+  onScroll?: () => void;
+  /** Called after a forwarded press or activation may have changed the DOM. */
+  onInteraction?: () => void;
 }
 
 /**
@@ -38,6 +48,8 @@ export class InputBridge {
   private readonly raycaster: Raycaster;
   private readonly keyboardMode: KeyboardMode;
   private readonly snapshotMaxAgeMs: number;
+  private readonly onScroll?: () => void;
+  private readonly onInteraction?: () => void;
   private readonly ndc = new Vector2();
 
   private snapshot: HitCandidate[] = [];
@@ -50,6 +62,9 @@ export class InputBridge {
   private focusedElement: HTMLElement | null = null;
   private pressedTarget: HTMLElement | null = null;
   private pressedPointerId: number | null = null;
+  private pressedClientX = 0;
+  private pressedClientY = 0;
+  private pressedMoved = false;
 
   constructor(options: InputBridgeOptions) {
     this.camera = options.camera;
@@ -59,6 +74,8 @@ export class InputBridge {
     this.raycaster = options.raycaster ?? new Raycaster();
     this.keyboardMode = options.keyboardMode ?? "focus-transfer";
     this.snapshotMaxAgeMs = options.snapshotMaxAgeMs ?? 50;
+    this.onScroll = options.onScroll;
+    this.onInteraction = options.onInteraction;
 
     this.onPointerDown = this.onPointerDown.bind(this);
     this.onPointerMove = this.onPointerMove.bind(this);
@@ -126,7 +143,8 @@ export class InputBridge {
     this.lastLocalX = localX;
     this.lastLocalY = localY;
 
-    const target = hitTestSnapshot(this.ensureSnapshot(), localX, localY);
+    const hitTarget = hitTestSnapshot(this.ensureSnapshot(), localX, localY);
+    const target = hitTarget && findActivationTarget(hitTarget);
     this.lastTarget = target;
     if (type === "pointermove") this.setHoverTarget(target);
     if (!target) return null;
@@ -146,6 +164,10 @@ export class InputBridge {
       } else {
         this.blur();
       }
+      // Pointer-down handlers can open, close, or re-layer an interface. Do
+      // not let a cached snapshot route the next gesture into its old layout.
+      this.invalidateSnapshot();
+      this.onInteraction?.();
     }
 
     return target;
@@ -179,10 +201,29 @@ export class InputBridge {
     }
     this.pressedTarget = this.handleHit(uv, "pointerdown", event);
     this.pressedPointerId = this.pressedTarget ? event.pointerId : null;
-    if (this.pressedTarget) this.domElement.setPointerCapture(event.pointerId);
+    if (this.pressedTarget) {
+      // The physical event targets the renderer canvas, not the off-screen
+      // control. Letting it bubble makes host-level "outside click" handlers
+      // (for example, a start menu) close their UI before this bridge can
+      // deliver the matching click on pointer-up.
+      event.stopPropagation();
+      this.pressedClientX = event.clientX;
+      this.pressedClientY = event.clientY;
+      this.pressedMoved = false;
+      this.domElement.setPointerCapture(event.pointerId);
+    }
   }
 
   private onPointerMove(event: PointerEvent): void {
+    // Pointer capture means a drag belongs to the element pressed at its
+    // beginning, even after the cursor crosses another control or leaves the
+    // mesh altogether. This is essential for title-bar drags and resize grips.
+    if (event.pointerId === this.pressedPointerId && this.pressedTarget) {
+      this.pressedMoved ||= Math.hypot(event.clientX - this.pressedClientX, event.clientY - this.pressedClientY) > 5;
+      this.updateLocalPointerPosition(event);
+      this.forwardToPressedTarget(this.pressedTarget, "pointermove", event);
+      return;
+    }
     const uv = this.raycastUv(event);
     if (!uv) {
       this.setHoverTarget(null);
@@ -201,24 +242,28 @@ export class InputBridge {
   private onPointerUp(event: PointerEvent): void {
     if (event.pointerId !== this.pressedPointerId) return;
     const pressedTarget = this.pressedTarget;
+    const pressedMoved = this.pressedMoved;
     this.pressedTarget = null;
     this.pressedPointerId = null;
+    this.pressedMoved = false;
     if (this.domElement.hasPointerCapture(event.pointerId)) this.domElement.releasePointerCapture(event.pointerId);
-    const uv = this.raycastUv(event);
-    if (!uv) {
-      if (pressedTarget) this.forwardToPressedTarget(pressedTarget, "pointerup", event);
-      return;
-    }
-    const upTarget = this.handleHit(uv, "pointerup", event);
-    if (pressedTarget && upTarget === pressedTarget) {
-      forwardPointerEvent({
-        root: this.root,
-        target: pressedTarget,
-        type: "click",
-        localX: this.lastLocalX,
-        localY: this.lastLocalY,
-        nativeEvent: event,
-      });
+    this.updateLocalPointerPosition(event);
+    if (pressedTarget) {
+      this.forwardToPressedTarget(pressedTarget, "pointerup", event);
+      if (!pressedMoved) {
+        forwardPointerEvent({
+          root: this.root,
+          target: pressedTarget,
+          type: "click",
+          localX: this.lastLocalX,
+          localY: this.lastLocalY,
+          nativeEvent: event,
+        });
+        // A click commonly toggles dialogs and menus. Rebuild the geometry
+        // snapshot before the next click, rather than waiting for its cache.
+        this.invalidateSnapshot();
+        this.onInteraction?.();
+      }
     }
   }
 
@@ -227,13 +272,14 @@ export class InputBridge {
     const pressedTarget = this.pressedTarget;
     this.pressedTarget = null;
     this.pressedPointerId = null;
+    this.pressedMoved = false;
     if (this.domElement.hasPointerCapture(event.pointerId)) this.domElement.releasePointerCapture(event.pointerId);
     if (pressedTarget) this.forwardToPressedTarget(pressedTarget, "pointercancel", event);
   }
 
   private forwardToPressedTarget(
     target: HTMLElement,
-    type: "pointerup" | "pointercancel",
+    type: "pointermove" | "pointerup" | "pointercancel",
     nativeEvent: PointerEvent,
   ): void {
     forwardPointerEvent({
@@ -246,11 +292,37 @@ export class InputBridge {
     });
   }
 
+  /** Keeps the synthetic event coordinates current while the real pointer is captured. */
+  private updateLocalPointerPosition(event: PointerEvent): void {
+    const uv = this.raycastUv(event);
+    if (uv) {
+      const rootRect = this.root.getBoundingClientRect();
+      this.lastLocalX = uv.x * rootRect.width;
+      this.lastLocalY = (1 - uv.y) * rootRect.height;
+      return;
+    }
+
+    // A drag may leave the physical mesh. Preserve a continuous coordinate
+    // space relative to the renderer instead of freezing at pointer-down.
+    const canvasRect = this.domElement.getBoundingClientRect();
+    const rootRect = this.root.getBoundingClientRect();
+    this.lastLocalX = ((event.clientX - canvasRect.left) / canvasRect.width) * rootRect.width;
+    this.lastLocalY = ((event.clientY - canvasRect.top) / canvasRect.height) * rootRect.height;
+  }
+
   private onWheel(event: WheelEvent): void {
     const uv = this.raycastUv(event);
     if (!uv) return;
+    // A monitor owns wheel gestures over its surface. Besides protecting the
+    // in-app scroll target, this keeps surrounding scene controls from
+    // interpreting the same physical wheel event as camera input.
+    event.stopPropagation();
     event.preventDefault();
-    this.handleHit(uv, "wheel", event);
+    const target = this.handleHit(uv, "wheel", event);
+    if (target && scrollNearestAncestor(this.root, target, event)) {
+      this.invalidateSnapshot();
+      this.onScroll?.();
+    }
   }
 
   private onKeyDown(event: KeyboardEvent): void {

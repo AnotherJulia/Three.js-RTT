@@ -54,4 +54,18 @@ describe("hitTestSnapshot", () => {
     const hit = hitTestSnapshot(snapshot, 10, 10);
     expect(hit?.id).toBe("front");
   });
+
+  it("keeps descendants below a higher-z-index overlapping sibling", () => {
+    const root = setup(`
+      <section id="back" style="position:absolute; z-index:1"><button id="back-button">back</button></section>
+      <section id="front" style="position:absolute; z-index:2"><button id="front-button">front</button></section>
+    `);
+    stubRect(root, { width: 100, height: 100 });
+    for (const selector of ["#back", "#back-button", "#front", "#front-button"]) {
+      stubRect(root.querySelector(selector)!, { left: 0, top: 0, width: 50, height: 50 });
+    }
+
+    const snapshot = captureHitTestSnapshot(root);
+    expect(hitTestSnapshot(snapshot, 10, 10)?.id).toBe("front-button");
+  });
 });

@@ -10,6 +10,8 @@ import { intersectRect, type Rect } from "../utils/rect";
  */
 export class DirtyTracker {
   private dirty = true;
+  /** Advances for every change so an async capture cannot clear a newer DOM. */
+  private revision = 0;
   private observer: MutationObserver | null = null;
   private readonly mode: DirtyMode;
 
@@ -18,6 +20,7 @@ export class DirtyTracker {
     if (mode === "mutation-observer") {
       this.observer = new MutationObserver(() => {
         this.dirty = true;
+        this.revision += 1;
       });
       this.observer.observe(root, {
         subtree: true,
@@ -34,12 +37,25 @@ export class DirtyTracker {
     return this.dirty;
   }
 
-  markClean(): void {
+  /** Snapshot the current revision before beginning asynchronous work. */
+  getRevision(): number {
+    return this.revision;
+  }
+
+  /**
+   * Clears the dirty flag only when nothing changed while work was in flight.
+   * A React root commonly replaces its login tree with its desktop tree during
+   * an image decode; treating that newer mutation as clean leaves the old (or
+   * blank) texture permanently resident.
+   */
+  markClean(capturedRevision?: number): void {
+    if (capturedRevision !== undefined && capturedRevision !== this.revision) return;
     this.dirty = false;
   }
 
   requestRedraw(): void {
     this.dirty = true;
+    this.revision += 1;
   }
 
   dispose(): void {
