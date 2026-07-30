@@ -31,6 +31,8 @@ export interface CompositorOptions {
 export class DomCompositor {
   readonly canvas: HTMLCanvasElement;
   private readonly ctx: CanvasRenderingContext2D;
+  private readonly baseCanvas: HTMLCanvasElement;
+  private readonly baseCtx: CanvasRenderingContext2D;
   private readonly root: HTMLElement;
   private readonly strategy: RasterStrategy;
   private readonly dirtyTracker: DirtyTracker;
@@ -60,6 +62,13 @@ export class DomCompositor {
     const ctx = this.canvas.getContext("2d");
     if (!ctx) throw new Error("[Three.js-RTT] 2D canvas context unavailable");
     this.ctx = ctx;
+
+    this.baseCanvas = document.createElement("canvas");
+    this.baseCanvas.width = this.width;
+    this.baseCanvas.height = this.height;
+    const baseCtx = this.baseCanvas.getContext("2d");
+    if (!baseCtx) throw new Error("[Three.js-RTT] 2D canvas context unavailable");
+    this.baseCtx = baseCtx;
 
     this.strategy.attach(this.root, this.width, this.height);
 
@@ -101,6 +110,8 @@ export class DomCompositor {
     this.height = height;
     this.canvas.width = width;
     this.canvas.height = height;
+    this.baseCanvas.width = width;
+    this.baseCanvas.height = height;
     this.strategy.resize(width, height);
     this.dirtyTracker.requestRedraw();
   }
@@ -125,15 +136,22 @@ export class DomCompositor {
         const t0 = performance.now();
         const frame = await this.strategy.capture();
         this.lastCaptureMs = performance.now() - t0;
-        this.ctx.clearRect(0, 0, this.width, this.height);
-        this.ctx.drawImage(frame.canvas, 0, 0, this.width, this.height);
+        this.baseCtx.clearRect(0, 0, this.width, this.height);
+        this.baseCtx.drawImage(frame.canvas, 0, 0, this.width, this.height);
         this.dirtyTracker.markClean();
       } finally {
         this.captureInFlight = false;
       }
     }
 
-    this.drawLiveElementOverlay();
+    const liveElements = findLiveElements(this.root, this.liveElementSelector);
+    // A static base with no live descendants is already resident in the texture;
+    // avoid both a canvas copy and a GPU upload on its scheduled ticks.
+    if (!isDirty && liveElements.length === 0) return;
+
+    this.ctx.clearRect(0, 0, this.width, this.height);
+    this.ctx.drawImage(this.baseCanvas, 0, 0);
+    this.drawLiveElementOverlay(liveElements);
     this.publish();
   }
 
@@ -141,8 +159,7 @@ export class DomCompositor {
     return this.lastCaptureMs;
   }
 
-  private drawLiveElementOverlay(): void {
-    const liveElements = findLiveElements(this.root, this.liveElementSelector);
+  private drawLiveElementOverlay(liveElements: ReturnType<typeof findLiveElements>): void {
     for (const { element, left, top, width, height, clip } of liveElements) {
       if (width <= 0 || height <= 0) continue;
       if (element instanceof HTMLVideoElement && element.readyState < element.HAVE_CURRENT_DATA) continue;
