@@ -59,6 +59,7 @@ export class ScreenTexture {
   private readonly options: ScreenTextureOptions;
   private originalMaterial: Material | Material[] | null = null;
   private appliedMaterial: Material | null = null;
+  private materialSlotIndex: number | null = null;
 
   constructor(canvas: HTMLCanvasElement, options: ScreenTextureOptions) {
     this.mesh = options.mesh;
@@ -92,10 +93,37 @@ export class ScreenTexture {
       assert(index !== -1, "resolved material not found in mesh.material array");
       materials[index] = target;
       this.mesh.material = materials;
+      this.materialSlotIndex = index;
     } else {
       this.mesh.material = target;
+      this.materialSlotIndex = null;
     }
     this.appliedMaterial = target;
+  }
+
+  /**
+   * Reassert the live material after a host renderer has reconciled a mesh.
+   *
+   * R3F can finish applying an imported model's material props after a
+   * ScreenSurface has attached. With one screen that ordering is usually
+   * invisible; with several independently mounted surfaces it can replace one
+   * curved screen's live material with its idle material after attachment.
+   * Keep the already-created material (and therefore its CanvasTexture) on
+   * the exact selected mesh without cloning or allocating on every frame.
+   */
+  ensureAttached(): void {
+    const target = this.appliedMaterial;
+    if (!target) return;
+
+    if (Array.isArray(this.mesh.material)) {
+      if (this.mesh.material.includes(target)) return;
+      const materials = this.mesh.material.slice();
+      materials[this.materialSlotIndex ?? 0] = target;
+      this.mesh.material = materials;
+      return;
+    }
+
+    if (this.mesh.material !== target) this.mesh.material = target;
   }
 
   private assignTextureSlots(material: Material): void {
@@ -119,6 +147,7 @@ export class ScreenTexture {
     this.appliedMaterial?.dispose();
     this.appliedMaterial = null;
     this.originalMaterial = null;
+    this.materialSlotIndex = null;
   }
 
   dispose(): void {
