@@ -114,7 +114,10 @@ export class DomCompositor {
    * instead of it running its own rAF subscription, if constructed without `start()`. */
   async tick(): Promise<void> {
     if (this.captureInFlight) return; // backpressure: skip rather than queue
-    const isDirty = this.dirtyTracker.isDirty();
+    // CSS animations and transitions do not produce mutations.  Ask the browser
+    // whether the base layer is currently animating so the default dirty mode
+    // remains cheap for static DOM without freezing animated UI.
+    const isDirty = this.dirtyTracker.isDirty() || this.hasRunningBaseAnimation();
 
     if (isDirty) {
       this.captureInFlight = true;
@@ -161,6 +164,15 @@ export class DomCompositor {
 
   private publish(): void {
     for (const cb of this.frameListeners) cb(this.canvas);
+  }
+
+  private hasRunningBaseAnimation(): boolean {
+    if (typeof this.root.getAnimations !== "function") return false;
+    return this.root.getAnimations({ subtree: true }).some((animation) => {
+      if (animation.playState !== "running") return false;
+      const target = (animation.effect as KeyframeEffect | null)?.target;
+      return !(target instanceof Element) || !target.closest(this.liveElementSelector);
+    });
   }
 
   dispose(): void {
