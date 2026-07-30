@@ -143,8 +143,9 @@ interface ScreenSurfaceOptions {
 The two costs involved are very different in kind, and the design keeps them separate on
 purpose:
 
-- **Cheap, every tick regardless of fps**: `drawImage()` for live `<video>`/`<canvas>`
-  descendants, and `texture.needsUpdate = true`. Unremarkable on any GPU from the last decade.
+- **Cheap, every live-media tick**: `drawImage()` for live `<video>`/`<canvas>` descendants,
+  followed by `texture.needsUpdate = true`. Fully static screens skip both the canvas copy and
+  the GPU upload after their initial paint.
 - **Comparatively expensive, only when actually dirty**: the SVG-`foreignObject` base-layer
   serialize → decode → draw. Gated behind `MutationObserver` by default, so a static UI with an
   idle window costs nothing once painted.
@@ -158,14 +159,14 @@ smoothly instead of backing up.
 ## Known limitations
 
 - **Native CSS `:hover`** needs genuine cursor position, not `dispatchEvent()` — hover-only
-  styling won't trigger by default. The compositor tags the current geometric hit target with a
-  `data-hover` attribute each tick, so a consuming app can add companion `[data-hover]` CSS
+  styling won't trigger by default. The input bridge tags the current geometric hit target with a
+  `data-hover` attribute whenever it changes, so a consuming app can add companion `[data-hover]` CSS
   rules if it cares.
 - **Hit-testing is a geometry-based approximation**, not a full CSS stacking-context resolver:
   explicit `z-index` wins ties, then smallest-area (most specific) element, then document order.
   Correct for the overwhelming majority of real UIs; may misfire on deliberately exotic stacking.
-- **`<video>`/`<canvas>` clipping** to their nearest `overflow: hidden` ancestor is a rectangle
-  intersection — exact `clip-path`/`border-radius` clipping isn't applied.
+- **`<video>`/`<canvas>` clipping** uses rectangular intersections for every scrolling/clipping
+  ancestor — exact `clip-path`/`border-radius` clipping isn't applied.
 - Base-layer rasterization is SVG-`foreignObject`-based, which has known cross-browser quirks
   for very exotic CSS. The `RasterStrategy` interface exists specifically so a different backend
   can be swapped in without touching the texture or input layers.
