@@ -1,5 +1,6 @@
 import {
   CanvasTexture,
+  Color,
   LinearFilter,
   LinearMipMapLinearFilter,
   SRGBColorSpace,
@@ -98,9 +99,18 @@ export class ScreenTexture {
   }
 
   private assignTextureSlots(material: Material): void {
-    const withMap = material as Material & { map?: CanvasTexture | null; emissiveMap?: CanvasTexture | null };
+    const withMap = material as Material & {
+      map?: CanvasTexture | null;
+      emissiveMap?: CanvasTexture | null;
+      emissive?: Color;
+    };
     withMap.map = this.texture;
-    if (this.options.applyAsEmissive) withMap.emissiveMap = this.texture;
+    if (this.options.applyAsEmissive && "emissiveMap" in material) {
+      withMap.emissiveMap = this.texture;
+      // Emissive maps are multiplied by this color; standard materials start
+      // black, which otherwise makes the documented glowing-screen option dark.
+      withMap.emissive?.setRGB(1, 1, 1);
+    }
     material.needsUpdate = true;
   }
 
