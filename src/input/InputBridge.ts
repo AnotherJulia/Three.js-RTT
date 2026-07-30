@@ -47,6 +47,8 @@ export class InputBridge {
   private lastLocalY = 0;
   private enabled = false;
   private focusedElement: HTMLElement | null = null;
+  private pressedTarget: HTMLElement | null = null;
+  private pressedPointerId: number | null = null;
 
   constructor(options: InputBridgeOptions) {
     this.camera = options.camera;
@@ -60,6 +62,7 @@ export class InputBridge {
     this.onPointerDown = this.onPointerDown.bind(this);
     this.onPointerMove = this.onPointerMove.bind(this);
     this.onPointerUp = this.onPointerUp.bind(this);
+    this.onPointerCancel = this.onPointerCancel.bind(this);
     this.onWheel = this.onWheel.bind(this);
     this.onKeyDown = this.onKeyDown.bind(this);
     this.onKeyUp = this.onKeyUp.bind(this);
@@ -71,6 +74,7 @@ export class InputBridge {
     this.domElement.addEventListener("pointerdown", this.onPointerDown);
     this.domElement.addEventListener("pointermove", this.onPointerMove);
     this.domElement.addEventListener("pointerup", this.onPointerUp);
+    this.domElement.addEventListener("pointercancel", this.onPointerCancel);
     this.domElement.addEventListener("wheel", this.onWheel, { passive: false });
     if (this.keyboardMode === "synthetic") {
       document.addEventListener("keydown", this.onKeyDown);
@@ -84,6 +88,7 @@ export class InputBridge {
     this.domElement.removeEventListener("pointerdown", this.onPointerDown);
     this.domElement.removeEventListener("pointermove", this.onPointerMove);
     this.domElement.removeEventListener("pointerup", this.onPointerUp);
+    this.domElement.removeEventListener("pointercancel", this.onPointerCancel);
     this.domElement.removeEventListener("wheel", this.onWheel);
     document.removeEventListener("keydown", this.onKeyDown);
     document.removeEventListener("keyup", this.onKeyUp);
@@ -169,7 +174,9 @@ export class InputBridge {
       this.blur();
       return;
     }
-    this.handleHit(uv, "pointerdown", event);
+    this.pressedTarget = this.handleHit(uv, "pointerdown", event);
+    this.pressedPointerId = this.pressedTarget ? event.pointerId : null;
+    if (this.pressedTarget) this.domElement.setPointerCapture(event.pointerId);
   }
 
   private onPointerMove(event: PointerEvent): void {
@@ -179,19 +186,51 @@ export class InputBridge {
   }
 
   private onPointerUp(event: PointerEvent): void {
+    if (event.pointerId !== this.pressedPointerId) return;
+    const pressedTarget = this.pressedTarget;
+    this.pressedTarget = null;
+    this.pressedPointerId = null;
+    if (this.domElement.hasPointerCapture(event.pointerId)) this.domElement.releasePointerCapture(event.pointerId);
     const uv = this.raycastUv(event);
-    if (!uv) return;
-    this.handleHit(uv, "pointerup", event);
-    if (this.lastTarget) {
+    if (!uv) {
+      if (pressedTarget) this.forwardToPressedTarget(pressedTarget, "pointerup", event);
+      return;
+    }
+    const upTarget = this.handleHit(uv, "pointerup", event);
+    if (pressedTarget && upTarget === pressedTarget) {
       forwardPointerEvent({
         root: this.root,
-        target: this.lastTarget,
+        target: pressedTarget,
         type: "click",
         localX: this.lastLocalX,
         localY: this.lastLocalY,
         nativeEvent: event,
       });
     }
+  }
+
+  private onPointerCancel(event: PointerEvent): void {
+    if (event.pointerId !== this.pressedPointerId) return;
+    const pressedTarget = this.pressedTarget;
+    this.pressedTarget = null;
+    this.pressedPointerId = null;
+    if (this.domElement.hasPointerCapture(event.pointerId)) this.domElement.releasePointerCapture(event.pointerId);
+    if (pressedTarget) this.forwardToPressedTarget(pressedTarget, "pointercancel", event);
+  }
+
+  private forwardToPressedTarget(
+    target: HTMLElement,
+    type: "pointerup" | "pointercancel",
+    nativeEvent: PointerEvent,
+  ): void {
+    forwardPointerEvent({
+      root: this.root,
+      target,
+      type,
+      localX: this.lastLocalX,
+      localY: this.lastLocalY,
+      nativeEvent,
+    });
   }
 
   private onWheel(event: WheelEvent): void {

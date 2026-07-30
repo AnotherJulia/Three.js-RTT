@@ -2,6 +2,7 @@ export type ForwardablePointerType =
   | "pointerdown"
   | "pointermove"
   | "pointerup"
+  | "pointercancel"
   | "pointerenter"
   | "pointerleave"
   | "click"
