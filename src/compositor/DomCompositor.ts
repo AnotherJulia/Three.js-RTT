@@ -160,6 +160,12 @@ export class DomCompositor {
   }
 
   private drawLiveElementOverlay(liveElements: ReturnType<typeof findLiveElements>): void {
+    const rootRect = this.root.getBoundingClientRect();
+    if (rootRect.width <= 0 || rootRect.height <= 0) return;
+    // Element geometry is measured in CSS pixels while the compositor may use
+    // an independent raster resolution.
+    this.ctx.save();
+    this.ctx.scale(this.width / rootRect.width, this.height / rootRect.height);
     for (const { element, left, top, width, height, clip } of liveElements) {
       if (width <= 0 || height <= 0) continue;
       if (element instanceof HTMLVideoElement && element.readyState < element.HAVE_CURRENT_DATA) continue;
@@ -177,6 +183,7 @@ export class DomCompositor {
       }
       this.ctx.restore();
     }
+    this.ctx.restore();
   }
 
   private publish(): void {
